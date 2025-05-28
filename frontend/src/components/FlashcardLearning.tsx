@@ -17,7 +17,6 @@ const FlashcardLearning = () => {
     currentSession,
     isSessionActive,
     startFlashcardSession,
-    startQuizSession,
     endSession,
     markWordKnown,
     markWordUnknown,

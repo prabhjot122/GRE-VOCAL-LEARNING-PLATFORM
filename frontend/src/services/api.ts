@@ -13,7 +13,11 @@ const getAuthHeaders = () => {
 const handleResponse = async (response: Response) => {
   const data = await response.json();
 
+  console.log('API: Response data:', data);
+
   if (!response.ok) {
+    console.error('API: Request failed with status:', response.status);
+    console.error('API: Error data:', data);
     throw new Error(data.error || 'API request failed');
   }
 
@@ -104,16 +108,22 @@ export const wordApi = {
     word: string;
     meaning: string;
     pronunciation?: string;
-    synonym?: string;
-    antonym?: string;
     example?: string;
     difficulty?: string;
   }) => {
+    console.log('API: Sending word data:', wordData);
+    console.log('API: Request URL:', `${API_BASE_URL}/words`);
+    console.log('API: Request headers:', getAuthHeaders());
+
     const response = await fetch(`${API_BASE_URL}/words`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(wordData),
     });
+
+    console.log('API: Response status:', response.status);
+    console.log('API: Response headers:', response.headers);
+
     return handleResponse(response);
   },
 
@@ -123,8 +133,6 @@ export const wordApi = {
     word: string;
     meaning: string;
     pronunciation?: string;
-    synonym?: string;
-    antonym?: string;
     example?: string;
     difficulty?: string;
   }) => {
@@ -375,8 +383,6 @@ export interface Word {
   word: string;
   meaning: string;
   pronunciation?: string;
-  synonym?: string;
-  antonym?: string;
   example?: string;
   difficulty: string;
   is_learned: boolean;

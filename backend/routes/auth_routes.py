@@ -111,8 +111,10 @@ def register():
 def login():
     """Login user"""
     try:
+        print("=== LOGIN REQUEST RECEIVED ===")
         # Get JSON data
         data = request.get_json()
+        print(f"Login data: {data}")
         if not data:
             return jsonify({
                 'success': False,

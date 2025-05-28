@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 export interface StudySession {
   id: string;
   libraryId: number;
-  mode: 'flashcards' | 'quiz' | 'review';
+  mode: 'flashcards' | 'review';
   words: Word[];
   currentIndex: number;
   correctAnswers: number;
@@ -14,17 +14,6 @@ export interface StudySession {
   startTime: Date;
   endTime?: Date;
   isCompleted: boolean;
-}
-
-export interface QuizQuestion {
-  id: string;
-  type: 'multiple-choice' | 'fill-blank' | 'true-false' | 'matching';
-  word: Word;
-  question: string;
-  options?: string[];
-  correctAnswer: string;
-  userAnswer?: string;
-  isCorrect?: boolean;
 }
 
 export interface LearningStats {
@@ -42,8 +31,7 @@ interface LearningContextType {
   isSessionActive: boolean;
 
   // Session management
-  startFlashcardSession: (libraryId: number, mode: 'revision' | 'new' | 'mixed', startWithWordId?: number) => Promise<boolean>;
-  startQuizSession: (libraryId: number, questionCount: number) => Promise<boolean>;
+  startFlashcardSession: (libraryId: number, mode: 'revision' | 'new' | 'mixed') => Promise<boolean>;
   endSession: () => void;
 
   // Flashcard operations
@@ -51,12 +39,6 @@ interface LearningContextType {
   markWordUnknown: (wordId: number) => Promise<boolean>;
   nextCard: () => void;
   previousCard: () => void;
-
-  // Quiz operations
-  currentQuiz: QuizQuestion[] | null;
-  currentQuestionIndex: number;
-  submitAnswer: (answer: string) => void;
-  nextQuestion: () => void;
 
   // Learning analytics
   learningStats: LearningStats;
@@ -91,8 +73,6 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
 
   // State
   const [currentSession, setCurrentSession] = useState<StudySession | null>(null);
-  const [currentQuiz, setCurrentQuiz] = useState<QuizQuestion[] | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [learningStats, setLearningStats] = useState<LearningStats>({
     totalWordsStudied: 0,
     totalTimeSpent: 0,
@@ -122,7 +102,7 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
     setLearningStats(stats);
   };
 
-  const startFlashcardSession = async (libraryId: number, mode: 'revision' | 'new' | 'mixed'): Promise<boolean> => {
+  const startFlashcardSession = async (libraryId: number, mode: 'revision' | 'new' | 'mixed', startWithWordId?: number): Promise<boolean> => {
     try {
       // Import the API to fetch library words
       const { libraryApi } = await import('@/services/api');
@@ -154,15 +134,30 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
         return false;
       }
 
-      // Shuffle words for variety
-      wordsToStudy = wordsToStudy.sort(() => Math.random() - 0.5);
+      // Shuffle words for variety using Fisher-Yates algorithm
+      for (let i = wordsToStudy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [wordsToStudy[i], wordsToStudy[j]] = [wordsToStudy[j], wordsToStudy[i]];
+      }
+
+      // If a specific word is requested, move it to the front
+      let startIndex = 0;
+      if (startWithWordId) {
+        const wordIndex = wordsToStudy.findIndex(word => word.id === startWithWordId);
+        if (wordIndex > 0) {
+          // Move the word to the front
+          const targetWord = wordsToStudy[wordIndex];
+          wordsToStudy.splice(wordIndex, 1);
+          wordsToStudy.unshift(targetWord);
+        }
+      }
 
       const session: StudySession = {
         id: `session_${Date.now()}`,
         libraryId,
         mode: 'flashcards',
         words: wordsToStudy,
-        currentIndex: 0,
+        currentIndex: startIndex,
         correctAnswers: 0,
         totalAnswered: 0,
         startTime: new Date(),
@@ -177,120 +172,6 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
       toast.error('Failed to start flashcard session');
       return false;
     }
-  };
-
-  const startQuizSession = async (libraryId: number, questionCount: number): Promise<boolean> => {
-    try {
-      // Import the API to fetch library words
-      const { libraryApi } = await import('@/services/api');
-
-      // Fetch library with words
-      const response = await libraryApi.getLibrary(libraryId, { per_page: questionCount });
-      if (!response.success || !response.data.library.words) {
-        toast.error('Library not found or has no words');
-        return false;
-      }
-
-      const availableWords = response.data.library.words.slice(0, questionCount);
-      if (availableWords.length < questionCount) {
-        toast.warning(`Only ${availableWords.length} words available for quiz`);
-      }
-
-      const quiz = generateQuizQuestions(availableWords);
-      setCurrentQuiz(quiz);
-      setCurrentQuestionIndex(0);
-
-      const session: StudySession = {
-        id: `quiz_${Date.now()}`,
-        libraryId,
-        mode: 'quiz',
-        words: availableWords,
-        currentIndex: 0,
-        correctAnswers: 0,
-        totalAnswered: 0,
-        startTime: new Date(),
-        isCompleted: false
-      };
-
-      setCurrentSession(session);
-      toast.success(`Started quiz with ${quiz.length} questions`);
-      return true;
-    } catch (error) {
-      console.error('Failed to start quiz session:', error);
-      toast.error('Failed to start quiz session');
-      return false;
-    }
-  };
-
-  const generateQuizQuestions = (words: Word[]): QuizQuestion[] => {
-    return words.map((word, index) => {
-      const questionTypes: QuizQuestion['type'][] = ['multiple-choice', 'fill-blank', 'true-false'];
-      const randomType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
-
-      switch (randomType) {
-        case 'multiple-choice':
-          return generateMultipleChoiceQuestion(word, words);
-        case 'fill-blank':
-          return generateFillBlankQuestion(word);
-        case 'true-false':
-          return generateTrueFalseQuestion(word, words);
-        default:
-          return generateMultipleChoiceQuestion(word, words);
-      }
-    });
-  };
-
-  const generateMultipleChoiceQuestion = (word: Word, allWords: Word[]): QuizQuestion => {
-    const otherWords = allWords.filter(w => w.id !== word.id);
-    const wrongOptions = otherWords
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3)
-      .map(w => w.meaning);
-
-    const options = [word.meaning, ...wrongOptions].sort(() => Math.random() - 0.5);
-
-    return {
-      id: `q_${word.id}_mc`,
-      type: 'multiple-choice',
-      word,
-      question: `What is the meaning of "${word.word}"?`,
-      options,
-      correctAnswer: word.meaning
-    };
-  };
-
-  const generateFillBlankQuestion = (word: Word): QuizQuestion => {
-    const example = word.example || `The word "${word.word}" means _____.`;
-    const question = example.replace(new RegExp(word.word, 'gi'), '_____');
-
-    return {
-      id: `q_${word.id}_fb`,
-      type: 'fill-blank',
-      word,
-      question,
-      correctAnswer: word.word
-    };
-  };
-
-  const generateTrueFalseQuestion = (word: Word, allWords: Word[]): QuizQuestion => {
-    const isTrue = Math.random() > 0.5;
-    let meaning = word.meaning;
-
-    if (!isTrue) {
-      const otherWords = allWords.filter(w => w.id !== word.id);
-      if (otherWords.length > 0) {
-        meaning = otherWords[Math.floor(Math.random() * otherWords.length)].meaning;
-      }
-    }
-
-    return {
-      id: `q_${word.id}_tf`,
-      type: 'true-false',
-      word,
-      question: `True or False: "${word.word}" means "${meaning}"`,
-      options: ['True', 'False'],
-      correctAnswer: isTrue ? 'True' : 'False'
-    };
   };
 
   const markWordKnown = async (wordId: number): Promise<boolean> => {
@@ -344,41 +225,6 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
     }
   };
 
-  const submitAnswer = (answer: string) => {
-    if (!currentQuiz || !currentSession) return;
-
-    const currentQuestion = currentQuiz[currentQuestionIndex];
-    const isCorrect = answer.toLowerCase().trim() === currentQuestion.correctAnswer.toLowerCase().trim();
-
-    // Update question with user answer
-    const updatedQuiz = [...currentQuiz];
-    updatedQuiz[currentQuestionIndex] = {
-      ...currentQuestion,
-      userAnswer: answer,
-      isCorrect
-    };
-    setCurrentQuiz(updatedQuiz);
-
-    // Update session stats
-    setCurrentSession({
-      ...currentSession,
-      correctAnswers: currentSession.correctAnswers + (isCorrect ? 1 : 0),
-      totalAnswered: currentSession.totalAnswered + 1
-    });
-
-    toast.success(isCorrect ? 'Correct!' : 'Incorrect');
-  };
-
-  const nextQuestion = () => {
-    if (!currentQuiz) return;
-
-    if (currentQuestionIndex < currentQuiz.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      endSession();
-    }
-  };
-
   const endSession = () => {
     if (!currentSession) return;
 
@@ -409,8 +255,6 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
     // Clear session after a delay
     setTimeout(() => {
       setCurrentSession(null);
-      setCurrentQuiz(null);
-      setCurrentQuestionIndex(0);
     }, 3000);
   };
 
@@ -454,16 +298,11 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
     currentSession,
     isSessionActive,
     startFlashcardSession,
-    startQuizSession,
     endSession,
     markWordKnown,
     markWordUnknown,
     nextCard,
     previousCard,
-    currentQuiz,
-    currentQuestionIndex,
-    submitAnswer,
-    nextQuestion,
     learningStats,
     updateStats,
     getWordsForReview,

@@ -79,11 +79,70 @@
     @apply bg-background text-foreground font-sans antialiased;
     background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     min-height: 100vh;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variant-ligatures: common-ligatures;
   }
 
-  /* Enhanced Typography */
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+  /* Enhanced Typography Hierarchy */
+  h1 {
+    @apply text-4xl md:text-5xl font-bold tracking-tight leading-tight;
+    font-family: 'Kalam', cursive;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl font-semibold tracking-tight leading-tight;
+    font-family: 'Kalam', cursive;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl font-semibold tracking-tight leading-snug;
+  }
+
+  h4 {
+    @apply text-xl md:text-2xl font-semibold tracking-tight leading-snug;
+  }
+
+  h5 {
+    @apply text-lg md:text-xl font-medium tracking-tight leading-snug;
+  }
+
+  h6 {
+    @apply text-base md:text-lg font-medium tracking-tight leading-snug;
+  }
+
+  /* Enhanced Body Text */
+  p {
+    @apply leading-relaxed text-gray-700;
+  }
+
+  /* Enhanced Reading Experience */
+  .prose-enhanced {
+    @apply text-gray-800 leading-relaxed;
+    font-size: 1.125rem;
+    line-height: 1.7;
+  }
+
+  .prose-enhanced h1,
+  .prose-enhanced h2,
+  .prose-enhanced h3,
+  .prose-enhanced h4,
+  .prose-enhanced h5,
+  .prose-enhanced h6 {
+    @apply text-gray-900 font-cursive;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .prose-enhanced p {
+    margin-bottom: 1.5rem;
+  }
+
+  .prose-enhanced strong {
+    @apply font-semibold text-gray-900;
+  }
+
+  .prose-enhanced em {
+    @apply italic text-gray-700;
   }
 
   /* Smooth Transitions */
@@ -93,6 +152,53 @@
 }
 
 @layer components {
+  /* Enhanced Typography Components */
+  .heading-display {
+    @apply font-cursive font-bold text-gray-900 tracking-tight leading-tight;
+  }
+
+  .heading-primary {
+    @apply font-cursive font-semibold text-gray-900 tracking-tight leading-snug;
+  }
+
+  .heading-secondary {
+    @apply font-sans font-semibold text-gray-800 tracking-tight leading-snug;
+  }
+
+  .text-body {
+    @apply font-sans text-gray-700 leading-relaxed;
+  }
+
+  .text-body-large {
+    @apply font-sans text-lg text-gray-700 leading-relaxed;
+  }
+
+  .text-caption {
+    @apply font-sans text-sm text-gray-600 leading-normal;
+  }
+
+  .text-label {
+    @apply font-sans text-sm font-medium text-gray-700 leading-normal tracking-wide;
+  }
+
+  .text-code {
+    @apply font-mono text-sm bg-gray-100 px-2 py-1 rounded text-gray-800;
+  }
+
+  /* Story Typography */
+  .story-title {
+    @apply font-cursive text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-tight mb-4;
+  }
+
+  .story-content {
+    @apply font-sans text-lg text-gray-800 leading-relaxed;
+    font-feature-settings: "kern", "liga", "clig", "calt";
+  }
+
+  .story-meta {
+    @apply font-sans text-sm text-gray-600 leading-normal;
+  }
+
   /* Enhanced Card Styles */
   .card-enhanced {
     @apply bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl shadow-sm hover:shadow-md transition-all duration-300;

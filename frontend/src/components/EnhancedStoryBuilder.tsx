@@ -8,15 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { BookOpen, Wand2, Save, Shuffle, Share2, Download, Upload, Trash2, Edit, Eye, Search, Plus, X } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BookOpen, Wand2, Save, Share2, Download, Trash2, Edit, Eye, Search, Plus, X, ChevronLeft, ChevronRight, Calendar, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { useLibrary } from "@/contexts/LibraryContext";
-import { api, Story, wordApi, Word } from "@/services/api";
+import { storyApi, Story, wordApi, Word } from "@/services/api";
 import { geminiApi, StoryGenerationRequest } from "@/services/geminiApi";
 
 const EnhancedStoryBuilder = () => {
-  const { libraries, selectedLibrary } = useLibrary();
+  const { selectedLibrary, preloadEssentialData } = useLibrary();
 
   // Story creation state
   const [selectedWords, setSelectedWords] = useState<Word[]>([]);
@@ -42,6 +42,14 @@ const EnhancedStoryBuilder = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Story viewing state
+  const [viewingStory, setViewingStory] = useState<Story | null>(null);
+  const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
+
+  // Tab control state
+  const [activeMainTab, setActiveMainTab] = useState("create");
+  const [activeStoryTab, setActiveStoryTab] = useState("words");
+
   const genres = [
     { name: "Fantasy", icon: "🧙‍♂️", description: "Magic and mythical creatures" },
     { name: "Sci-Fi", icon: "🚀", description: "Futuristic technology and space" },
@@ -51,20 +59,23 @@ const EnhancedStoryBuilder = () => {
     { name: "Thriller", icon: "⚡", description: "Suspense and danger" }
   ];
 
-  // Load stories on component mount
+  // Preload essential data and load stories on component mount
   useEffect(() => {
+    preloadEssentialData();
     loadStories();
-  }, []);
+  }, [preloadEssentialData]);
 
   const loadStories = async () => {
     try {
-      const response = await api.get('/stories');
-      if (response.data.success) {
-        setStories(response.data.data.stories);
+      const response = await storyApi.getStories();
+      if (response.success) {
+        setStories(response.data.stories);
+      } else {
+        toast.error('Failed to load stories: ' + response.error);
       }
     } catch (error) {
       console.error('Failed to load stories:', error);
-      toast.error('Failed to load stories');
+      toast.error('Failed to load stories: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -132,7 +143,10 @@ const EnhancedStoryBuilder = () => {
       synonym: "",
       antonym: "",
       example: "",
-      difficulty: "medium"
+      difficulty: "medium",
+      added_at: new Date().toISOString(),
+      library_word_id: 0,
+      created_at: new Date().toISOString()
     };
 
     if (!selectedWords.find(w => w.word === manualWordObj.word)) {
@@ -267,21 +281,29 @@ const EnhancedStoryBuilder = () => {
         is_public: isPublic
       };
 
-      let response;
+      let response: any;
       if (isEditing && selectedStory) {
-        response = await api.put(`/stories/${selectedStory.id}`, storyData);
+        response = await storyApi.updateStory(selectedStory.id, storyData);
       } else {
-        response = await api.post('/stories', storyData);
+        response = await storyApi.createStory(storyData);
       }
 
-      if (response.data.success) {
-        toast.success(isEditing ? "Story updated successfully!" : "Story saved successfully!");
-        loadStories();
+      if (response.success) {
+        const successMessage = isEditing ? "Story updated successfully!" : "Story saved successfully!";
+        toast.success(successMessage);
+
+        // Reload stories to show updated data
+        await loadStories();
+
+        // Reset form and switch back to manage tab to show the updated story
         resetForm();
+        setActiveMainTab("manage");
+      } else {
+        throw new Error(response.error || 'Failed to save story');
       }
     } catch (error) {
       console.error('Failed to save story:', error);
-      toast.error('Failed to save story');
+      toast.error('Failed to save story: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -302,19 +324,53 @@ const EnhancedStoryBuilder = () => {
       synonym: "",
       antonym: "",
       example: "",
-      difficulty: "medium"
+      difficulty: "medium",
+      added_at: new Date().toISOString(),
+      library_word_id: 0,
+      created_at: new Date().toISOString()
     }));
     setSelectedWords(keywordWords);
     setIsPublic(story.is_public);
     setIsEditing(true);
+
+    // Switch to Create Story tab and go to the Write Story step
+    setActiveMainTab("create");
+    setActiveStoryTab("generate");
+
+    // Show success message
+    toast.success("Story loaded for editing!");
+  };
+
+  const handleViewStory = (story: Story) => {
+    setViewingStory(story);
+    setIsStoryViewerOpen(true);
+  };
+
+  const closeStoryViewer = () => {
+    setIsStoryViewerOpen(false);
+    setViewingStory(null);
+  };
+
+  const navigateToNextStory = () => {
+    if (!viewingStory) return;
+    const currentIndex = stories.findIndex(s => s.id === viewingStory.id);
+    const nextIndex = (currentIndex + 1) % stories.length;
+    setViewingStory(stories[nextIndex]);
+  };
+
+  const navigateToPreviousStory = () => {
+    if (!viewingStory) return;
+    const currentIndex = stories.findIndex(s => s.id === viewingStory.id);
+    const previousIndex = currentIndex === 0 ? stories.length - 1 : currentIndex - 1;
+    setViewingStory(stories[previousIndex]);
   };
 
   const handleDeleteStory = async (storyId: number) => {
     if (!confirm("Are you sure you want to delete this story?")) return;
 
     try {
-      const response = await api.delete(`/stories/${storyId}`);
-      if (response.data.success) {
+      const response = await storyApi.deleteStory(storyId);
+      if (response.success) {
         toast.success("Story deleted successfully!");
         loadStories();
         if (selectedStory?.id === storyId) {
@@ -337,6 +393,10 @@ const EnhancedStoryBuilder = () => {
     setIsPublic(false);
     setIsEditing(false);
     setSelectedStory(null);
+
+    // Reset tab states
+    setActiveMainTab("create");
+    setActiveStoryTab("words");
   };
 
   const highlightWords = (text: string) => {
@@ -344,6 +404,15 @@ const EnhancedStoryBuilder = () => {
     selectedWords.forEach(wordObj => {
       const regex = new RegExp(`\\b${wordObj.word}\\b`, 'gi');
       highlightedText = highlightedText.replace(regex, `<mark class="bg-yellow-200 px-1 rounded">${wordObj.word}</mark>`);
+    });
+    return highlightedText;
+  };
+
+  const highlightStoryWords = (text: string, keywords: string[]) => {
+    let highlightedText = text;
+    keywords.forEach(keyword => {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+      highlightedText = highlightedText.replace(regex, `<mark class="bg-blue-200 px-1 rounded font-semibold">${keyword}</mark>`);
     });
     return highlightedText;
   };
@@ -366,12 +435,12 @@ const EnhancedStoryBuilder = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="space-y-8">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">Story Builder</h1>
-          <p className="text-gray-600">Create engaging stories using your vocabulary words</p>
+        <div className="text-center space-y-3">
+          <h1 className="heading-display text-5xl md:text-6xl">Story Builder</h1>
+          <p className="text-body-large max-w-2xl mx-auto">Create engaging stories using your vocabulary words and bring your learning to life</p>
         </div>
 
-        <Tabs defaultValue="create" className="w-full">
+        <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
             <TabsTrigger value="create">Create Story</TabsTrigger>
             <TabsTrigger value="manage">My Stories</TabsTrigger>
@@ -390,7 +459,7 @@ const EnhancedStoryBuilder = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="words" className="w-full">
+                <Tabs value={activeStoryTab} onValueChange={setActiveStoryTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="words">1. Select Words</TabsTrigger>
                     <TabsTrigger value="settings">2. Story Settings</TabsTrigger>
@@ -579,16 +648,7 @@ const EnhancedStoryBuilder = () => {
 
                   <TabsContent value="settings" className="space-y-6">
                     <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="story-title">Story Title</Label>
-                        <Input
-                          id="story-title"
-                          placeholder="Enter your story title"
-                          value={storyTitle}
-                          onChange={(e) => setStoryTitle(e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
+
 
                       <div>
                         <h3 className="text-lg font-semibold mb-3">Choose Genre</h3>
@@ -708,11 +768,25 @@ const EnhancedStoryBuilder = () => {
                             <Wand2 className="h-4 w-4 mr-2" />
                             {loading ? 'Generating...' : 'Generate Story'}
                           </Button>
-                          <Button onClick={handleSaveStory} disabled={loading}>
+                          <Button onClick={handleSaveStory} disabled={loading || !storyTitle.trim() || !storyContent.trim()}>
                             <Save className="h-4 w-4 mr-2" />
                             {loading ? 'Saving...' : isEditing ? 'Update Story' : 'Save Story'}
                           </Button>
                         </div>
+                      </div>
+
+                      {/* Story Title Field */}
+                      <div>
+                        <Label htmlFor="story-title">Story Title *</Label>
+                        <Input
+                          id="story-title"
+                          type="text"
+                          placeholder="Enter your story title..."
+                          value={storyTitle}
+                          onChange={(e) => setStoryTitle(e.target.value)}
+                          className="mt-1"
+                          required
+                        />
                       </div>
 
                       <Textarea
@@ -724,19 +798,28 @@ const EnhancedStoryBuilder = () => {
 
                       {storyContent && selectedWords.length > 0 && (
                         <div className="space-y-4">
-                          <h4 className="font-medium">Story Preview (with highlighted vocabulary)</h4>
+                          <h4 className="heading-secondary text-xl">Story Preview</h4>
+                          <p className="text-caption">Vocabulary words are highlighted below</p>
                           <div
-                            className="p-4 bg-gray-50 rounded-lg prose prose-sm max-w-none"
+                            className="p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 story-content prose prose-lg max-w-none"
                             dangerouslySetInnerHTML={{ __html: highlightWords(storyContent) }}
                           />
                         </div>
                       )}
 
                       {isEditing && (
-                        <div className="flex justify-between">
-                          <Button variant="outline" onClick={resetForm}>
-                            Cancel Edit
-                          </Button>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Edit className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-900">
+                                Editing: {selectedStory?.title}
+                              </span>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={resetForm}>
+                              Cancel Edit
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -774,13 +857,13 @@ const EnhancedStoryBuilder = () => {
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <CardTitle className="text-lg line-clamp-2">{story.title}</CardTitle>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <Badge variant="outline" className="text-xs">
+                              <CardTitle className="heading-primary text-xl line-clamp-2 mb-3">{story.title}</CardTitle>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="text-xs font-medium">
                                   {story.genre}
                                 </Badge>
                                 {story.is_public && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-xs font-medium">
                                     <Share2 className="h-3 w-3 mr-1" />
                                     Public
                                   </Badge>
@@ -790,7 +873,7 @@ const EnhancedStoryBuilder = () => {
                           </div>
                         </CardHeader>
                         <CardContent className="pt-0">
-                          <p className="text-sm text-gray-600 line-clamp-3 mb-4">
+                          <p className="text-body line-clamp-3 mb-4">
                             {story.content.substring(0, 150)}...
                           </p>
 
@@ -820,12 +903,19 @@ const EnhancedStoryBuilder = () => {
                           <div className="flex space-x-2">
                             <Button
                               size="sm"
-                              variant="outline"
-                              onClick={() => handleEditStory(story)}
+                              variant="default"
+                              onClick={() => handleViewStory(story)}
                               className="flex-1"
                             >
-                              <Edit className="h-3 w-3 mr-1" />
-                              Edit
+                              <Eye className="h-3 w-3 mr-1" />
+                              Read
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditStory(story)}
+                            >
+                              <Edit className="h-3 w-3" />
                             </Button>
                             <Button
                               size="sm"
@@ -852,6 +942,141 @@ const EnhancedStoryBuilder = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Story Viewer Dialog */}
+        <Dialog open={isStoryViewerOpen} onOpenChange={setIsStoryViewerOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <DialogTitle className="story-title text-left">
+                    {viewingStory?.title}
+                  </DialogTitle>
+                  <DialogDescription className="text-left mt-3">
+                    <div className="flex items-center space-x-4 story-meta">
+                      <div className="flex items-center space-x-1">
+                        <Tag className="h-4 w-4" />
+                        <span className="font-medium">{viewingStory?.genre}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>{viewingStory ? new Date(viewingStory.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <BookOpen className="h-4 w-4" />
+                        <span>{viewingStory?.content.split(' ').length} words</span>
+                      </div>
+                      {viewingStory?.is_public && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Share2 className="h-3 w-3 mr-1" />
+                          Public
+                        </Badge>
+                      )}
+                    </div>
+                  </DialogDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {stories.length > 1 && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={navigateToPreviousStory}
+                        disabled={!viewingStory}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-gray-500">
+                        {viewingStory ? stories.findIndex(s => s.id === viewingStory.id) + 1 : 0} of {stories.length}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={navigateToNextStory}
+                        disabled={!viewingStory}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (viewingStory) {
+                        handleEditStory(viewingStory);
+                        closeStoryViewer();
+                      }
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={closeStoryViewer}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto">
+              {viewingStory && (
+                <div className="space-y-6">
+                  {/* Keywords Section */}
+                  {viewingStory.keywords && viewingStory.keywords.length > 0 && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                      <h4 className="heading-secondary text-lg text-blue-900 mb-3">Vocabulary Words Used</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {viewingStory.keywords.map((keyword, index) => (
+                          <Badge key={index} variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 font-medium px-3 py-1">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Story Content */}
+                  <div className="prose prose-xl max-w-none">
+                    <div
+                      className="story-content prose-enhanced"
+                      dangerouslySetInnerHTML={{
+                        __html: highlightStoryWords(viewingStory.content, viewingStory.keywords || [])
+                      }}
+                    />
+                  </div>
+
+                  {/* Story Actions */}
+                  <div className="flex justify-center space-x-4 pt-6 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => viewingStory && exportStory(viewingStory)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Story
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (viewingStory) {
+                          handleEditStory(viewingStory);
+                          closeStoryViewer();
+                        }
+                      }}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Story
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

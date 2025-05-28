@@ -46,8 +46,6 @@ class WordSchema(Schema):
         validate=validate.Length(max=200),
         allow_none=True
     )
-    synonym = fields.Str(allow_none=True)
-    antonym = fields.Str(allow_none=True)
     example = fields.Str(allow_none=True)
     difficulty = fields.Str(
         validate=validate.OneOf(['easy', 'medium', 'hard']),

@@ -341,9 +341,10 @@ def delete_library(current_user, library_id):
 @library_bp.route('/<int:library_id>/upload-csv', methods=['POST'])
 @token_required
 def upload_csv_to_library(current_user, library_id):
-    """Upload CSV file to add words to a library"""
+    """Upload CSV file to add words to a library with intelligent column detection"""
     import csv
     import io
+    from csv_column_detector import CSVColumnDetector
 
     try:
         # Verify library belongs to user
@@ -379,22 +380,37 @@ def upload_csv_to_library(current_user, library_id):
                 'error': 'File must be a CSV file'
             }), 400
 
-        # Read and parse CSV
+        # Read file content
+        file_content = file.stream.read().decode("UTF8")
+
+        # Use intelligent column detection
+        detector = CSVColumnDetector()
+        word_column, meaning_column, analysis_info = detector.detect_columns(file_content)
+
+        if 'error' in analysis_info:
+            return jsonify({
+                'success': False,
+                'error': analysis_info['error']
+            }), 400
+
+        if not word_column or not meaning_column:
+            # Provide helpful suggestions
+            suggestions = detector.get_mapping_suggestions(analysis_info['available_columns'])
+            return jsonify({
+                'success': False,
+                'error': 'Could not automatically detect word and meaning columns',
+                'details': {
+                    'available_columns': analysis_info['available_columns'],
+                    'word_suggestions': suggestions['word_suggestions'],
+                    'meaning_suggestions': suggestions['meaning_suggestions'],
+                    'analysis': analysis_info['column_scores']
+                }
+            }), 400
+
+        # Parse CSV with detected columns
         try:
-            stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+            stream = io.StringIO(file_content)
             csv_reader = csv.DictReader(stream)
-
-            # Expected columns: word, meaning, pronunciation (optional), synonym (optional), antonym (optional), example (optional)
-            required_columns = ['word', 'meaning']
-            optional_columns = ['pronunciation', 'synonym', 'antonym', 'example', 'difficulty']
-
-            # Check if required columns exist
-            if not all(col in csv_reader.fieldnames for col in required_columns):
-                return jsonify({
-                    'success': False,
-                    'error': f'CSV must contain columns: {", ".join(required_columns)}',
-                    'details': f'Found columns: {", ".join(csv_reader.fieldnames or [])}'
-                }), 400
 
             words_added = 0
             words_skipped = 0
@@ -408,8 +424,9 @@ def upload_csv_to_library(current_user, library_id):
 
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 because row 1 is headers
                 try:
-                    word_text = row.get('word', '').strip().lower()
-                    meaning_text = row.get('meaning', '').strip()
+                    # Use detected column names
+                    word_text = row.get(word_column, '').strip().lower()
+                    meaning_text = row.get(meaning_column, '').strip()
 
                     if not word_text or not meaning_text:
                         errors.append(f'Row {row_num}: Word and meaning are required')
@@ -481,11 +498,15 @@ def upload_csv_to_library(current_user, library_id):
 
             return jsonify({
                 'success': True,
-                'message': f'CSV processed successfully',
+                'message': f'CSV processed successfully using columns: "{word_column}" for words and "{meaning_column}" for meanings',
                 'data': {
                     'words_added': words_added,
                     'words_skipped': words_skipped,
-                    'errors': errors
+                    'errors': errors,
+                    'detected_columns': {
+                        'word_column': word_column,
+                        'meaning_column': meaning_column
+                    }
                 }
             }), 200
 

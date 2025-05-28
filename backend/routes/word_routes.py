@@ -101,8 +101,6 @@ def add_word_to_library(current_user):
                 word=validated_data['word'].lower(),
                 meaning=validated_data['meaning'],
                 pronunciation=validated_data.get('pronunciation'),
-                synonym=validated_data.get('synonym'),
-                antonym=validated_data.get('antonym'),
                 example=validated_data.get('example'),
                 difficulty=validated_data.get('difficulty', 'medium')
             )
@@ -212,8 +210,6 @@ def update_word(current_user, word_id):
         word.word = validated_data['word'].lower()
         word.meaning = validated_data['meaning']
         word.pronunciation = validated_data.get('pronunciation')
-        word.synonym = validated_data.get('synonym')
-        word.antonym = validated_data.get('antonym')
         word.example = validated_data.get('example')
         word.difficulty = validated_data.get('difficulty', word.difficulty)
 
@@ -488,8 +484,6 @@ def search_words(current_user):
         search_filter = or_(
             Word.word.ilike(f'%{query_text}%'),
             Word.meaning.ilike(f'%{query_text}%'),
-            Word.synonym.ilike(f'%{query_text}%'),
-            Word.antonym.ilike(f'%{query_text}%'),
             Word.example.ilike(f'%{query_text}%')
         )
 

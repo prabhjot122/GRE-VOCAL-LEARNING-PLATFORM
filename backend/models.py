@@ -111,8 +111,6 @@ class Word(db.Model):
     word = db.Column(db.String(100), nullable=False, index=True)
     meaning = db.Column(db.Text, nullable=False)
     pronunciation = db.Column(db.String(200))
-    synonym = db.Column(db.Text)
-    antonym = db.Column(db.Text)
     example = db.Column(db.Text)
     difficulty = db.Column(db.String(20), default='medium')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -127,8 +125,6 @@ class Word(db.Model):
             'word': self.word,
             'meaning': self.meaning,
             'pronunciation': self.pronunciation,
-            'synonym': self.synonym,
-            'antonym': self.antonym,
             'example': self.example,
             'difficulty': self.difficulty,
             'created_at': self.created_at.isoformat() if self.created_at else None

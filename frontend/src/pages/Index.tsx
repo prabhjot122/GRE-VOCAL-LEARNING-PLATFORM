@@ -24,7 +24,7 @@ const Index = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
-  const { libraries, selectedLibrary, selectLibrary, isLoading } = useLibrary();
+  const { libraries, selectedLibrary, selectLibrary, isLoading, preloadEssentialData } = useLibrary();
   const { startFlashcardSession } = useLearning();
   const navigate = useNavigate();
 
@@ -211,6 +211,11 @@ const Index = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, selectedLibrary]);
 
+  // Preload essential data when component mounts to ensure immediate availability
+  useEffect(() => {
+    preloadEssentialData();
+  }, [preloadEssentialData]);
+
   // Load data when library changes
   useEffect(() => {
     if (selectedLibrary) {
@@ -262,11 +267,11 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <div className="text-center space-y-4">
-            <h1 className="text-4xl font-bold text-gradient">Welcome to Your Learning Journey</h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Master new vocabulary with our intelligent learning system designed to accelerate your progress.
+        <div className="mb-12">
+          <div className="text-center space-y-6">
+            <h1 className="heading-display text-6xl md:text-7xl text-gradient">Welcome to VocabMaster</h1>
+            <p className="text-body-large max-w-3xl mx-auto leading-relaxed">
+              Master new vocabulary with our intelligent learning system designed to accelerate your progress and transform your language skills.
             </p>
           </div>
         </div>
@@ -314,15 +319,15 @@ const Index = () => {
                   <Library className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-600">Total Words</h3>
-                  <p className="text-xs text-gray-500">Master Library</p>
+                  <h3 className="text-label">Total Words</h3>
+                  <p className="text-caption">Master Library</p>
                 </div>
               </div>
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-2">{metrics.totalWords.toLocaleString()}</div>
+            <div className="heading-display text-4xl text-gray-900 mb-2">{metrics.totalWords.toLocaleString()}</div>
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-              <span className="text-xs text-gray-500">Available for learning</span>
+              <span className="text-caption">Available for learning</span>
             </div>
           </div>
 
@@ -333,16 +338,16 @@ const Index = () => {
                   <Target className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-600">Learning Progress</h3>
-                  <p className="text-xs text-gray-500">Current library</p>
+                  <h3 className="text-label">Learning Progress</h3>
+                  <p className="text-caption">Current library</p>
                 </div>
               </div>
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-3">{metrics.selectedLibrary.learned}</div>
+            <div className="heading-display text-4xl text-gray-900 mb-3">{metrics.selectedLibrary.learned}</div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">Progress</span>
-                <span className="font-semibold text-accent">{Math.round(learnedPercentage)}%</span>
+              <div className="flex items-center justify-between">
+                <span className="text-caption">Progress</span>
+                <span className="text-label text-accent">{Math.round(learnedPercentage)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
@@ -350,7 +355,7 @@ const Index = () => {
                   style={{ width: `${learnedPercentage}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-gray-500">of {metrics.selectedLibrary.total} words mastered</p>
+              <p className="text-caption">of {metrics.selectedLibrary.total} words mastered</p>
             </div>
           </div>
 
@@ -361,15 +366,15 @@ const Index = () => {
                   <TrendingUp className="h-6 w-6 text-warning" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-600">Remaining</h3>
-                  <p className="text-xs text-gray-500">To be learned</p>
+                  <h3 className="text-label">Remaining</h3>
+                  <p className="text-caption">To be learned</p>
                 </div>
               </div>
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-2">{metrics.selectedLibrary.unlearned}</div>
+            <div className="heading-display text-4xl text-gray-900 mb-2">{metrics.selectedLibrary.unlearned}</div>
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-warning rounded-full animate-pulse"></div>
-              <span className="text-xs text-gray-500">Words awaiting mastery</span>
+              <span className="text-caption">Words awaiting mastery</span>
             </div>
           </div>
         </div>
@@ -377,9 +382,9 @@ const Index = () => {
         {/* Search Bar */}
         <div className="mb-8">
           <div className="card-enhanced p-6 max-w-3xl mx-auto">
-            <div className="text-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">Quick Word Search</h2>
-              <p className="text-sm text-gray-600">Find any word in your vocabulary collection</p>
+            <div className="text-center mb-6">
+              <h2 className="heading-primary text-2xl mb-3">Quick Word Search</h2>
+              <p className="text-body">Find any word in your vocabulary collection</p>
             </div>
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -411,7 +416,7 @@ const Index = () => {
             {showSearchResults && (
               <div className="mt-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-800">
+                  <h3 className="heading-secondary text-xl">
                     Search Results {isSearching ? "(Searching...)" : `(${searchResults.length})`}
                   </h3>
                   {searchQuery && (
@@ -444,7 +449,7 @@ const Index = () => {
                         title="Click to start flashcard session with this word"
                       >
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">
+                          <h4 className="heading-secondary text-xl group-hover:text-primary transition-colors">
                             {word.word}
                           </h4>
                           <Badge
@@ -526,8 +531,8 @@ const Index = () => {
             <div className="relative p-8">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-3xl font-bold text-white mb-2">Word of the Day</h2>
-                  <p className="text-white/80 text-lg">Expand your vocabulary daily with curated words</p>
+                  <h2 className="heading-display text-4xl text-white mb-3">Word of the Day</h2>
+                  <p className="text-white/90 text-body-large">Expand your vocabulary daily with curated words</p>
                 </div>
                 <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                   <Brain className="h-8 w-8 text-white" />
@@ -547,7 +552,7 @@ const Index = () => {
                     <div className="space-y-3">
                       <div className="flex items-center space-x-4">
                         <h3
-                          className="text-4xl font-bold text-white cursor-pointer hover:text-blue-200 hover:underline transition-colors"
+                          className="heading-display text-5xl text-white cursor-pointer hover:text-blue-200 hover:underline transition-colors"
                           onClick={() => searchWordOnGoogle(wordOfTheDay.word)}
                           title="Click to search on Google"
                         >
@@ -572,7 +577,7 @@ const Index = () => {
                           Google
                         </Button>
                       </div>
-                      <p className="text-xl text-white/90 leading-relaxed max-w-2xl">{wordOfTheDay.meaning}</p>
+                      <p className="text-body-large text-white/90 leading-relaxed max-w-2xl">{wordOfTheDay.meaning}</p>
                     </div>
 
                     <div className="flex flex-col space-y-2">
@@ -618,8 +623,8 @@ const Index = () => {
           <div className="card-enhanced p-8">
             <div className="flex items-center justify-between mb-8">
               <div className="text-center flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Recommended for You</h2>
-                <p className="text-gray-600">Carefully selected words to accelerate your learning journey</p>
+                <h2 className="heading-primary text-3xl mb-3">Recommended for You</h2>
+                <p className="text-body">Carefully selected words to accelerate your learning journey</p>
               </div>
               <Button
                 onClick={() => fetchRecommendations(true)}
@@ -668,7 +673,7 @@ const Index = () => {
 
                     <div className="mb-4">
                       <h4
-                        className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors mb-2 cursor-pointer hover:text-blue-600 hover:underline"
+                        className="heading-secondary text-2xl group-hover:text-primary transition-colors mb-2 cursor-pointer hover:text-blue-600 hover:underline"
                         onClick={(e) => {
                           e.stopPropagation();
                           searchWordOnGoogle(word.word);
@@ -677,7 +682,7 @@ const Index = () => {
                       >
                         {word.word}
                       </h4>
-                      <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">{word.meaning}</p>
+                      <p className="text-body leading-relaxed line-clamp-3">{word.meaning}</p>
                     </div>
 
                     <div className="flex items-center space-x-2 mt-auto">
@@ -728,8 +733,8 @@ const Index = () => {
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Brain className="h-12 w-12 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Recommendations Available</h3>
-                <p className="text-gray-600 mb-6">No unlearned words found in the selected library</p>
+                <h3 className="heading-secondary text-2xl mb-3">No Recommendations Available</h3>
+                <p className="text-body mb-6">No unlearned words found in the selected library</p>
                 <Button onClick={() => fetchRecommendations(true)} className="btn-gradient">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again

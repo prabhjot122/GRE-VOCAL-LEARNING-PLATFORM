@@ -23,13 +23,14 @@ interface LibraryContextType {
     search?: string;
   }) => Promise<void>;
 
+  // Data preloading for immediate availability
+  preloadEssentialData: () => Promise<void>;
+
   // Word operations
   addWord: (wordData: {
     word: string;
     meaning: string;
     pronunciation?: string;
-    synonym?: string;
-    antonym?: string;
     example?: string;
     difficulty?: string;
   }) => Promise<boolean>;
@@ -37,8 +38,6 @@ interface LibraryContextType {
     word: string;
     meaning: string;
     pronunciation?: string;
-    synonym?: string;
-    antonym?: string;
     example?: string;
     difficulty?: string;
   }) => Promise<boolean>;
@@ -71,6 +70,41 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
 
+  // Define loadLibraryWords first before using it in effects
+  const loadLibraryWords = useCallback(async (libraryId: number, options?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+  }) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await libraryApi.getLibrary(libraryId, options);
+      if (response.success) {
+        const libraryData = response.data.library;
+
+        // Update the selected library with new words and pagination info
+        setSelectedLibrary(libraryData);
+
+        // Also update the library in the libraries array to keep counts in sync
+        setLibraries(prev => prev.map(lib =>
+          lib.id === libraryId
+            ? { ...lib, word_count: libraryData.word_count, learned_count: libraryData.learned_count, unlearned_count: libraryData.unlearned_count }
+            : lib
+        ));
+      } else {
+        throw new Error(response.error || 'Failed to load library words');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load library words';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // Empty dependency array since this function doesn't depend on any props or state
+
   // Fetch libraries when user is authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -78,15 +112,17 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({ children }) =>
     }
   }, [isAuthenticated]);
 
-  // Auto-select Master Library when libraries are loaded
+  // Auto-select Master Library when libraries are loaded and automatically load its words
   useEffect(() => {
     if (libraries.length > 0 && !selectedLibrary) {
       const masterLibrary = libraries.find(lib => lib.is_master);
       if (masterLibrary) {
         setSelectedLibrary(masterLibrary);
+        // Automatically load words for the master library to ensure immediate availability
+        loadLibraryWords(masterLibrary.id, { per_page: 500 });
       }
     }
-  }, [libraries, selectedLibrary]);
+  }, [libraries, selectedLibrary, loadLibraryWords]);
 
   const fetchLibraries = async () => {
     try {
@@ -180,48 +216,39 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({ children }) =>
 
   const selectLibrary = (library: Library) => {
     setSelectedLibrary(library);
+    // Automatically load words when a library is selected to ensure immediate availability
+    loadLibraryWords(library.id, { per_page: 500 });
   };
 
-  const loadLibraryWords = useCallback(async (libraryId: number, options?: {
-    page?: number;
-    per_page?: number;
-    search?: string;
-  }) => {
+  const preloadEssentialData = async (): Promise<void> => {
     try {
-      setIsLoading(true);
-      setError(null);
+      // Ensure libraries are loaded first
+      if (libraries.length === 0) {
+        await fetchLibraries();
+      }
 
-      const response = await libraryApi.getLibrary(libraryId, options);
-      if (response.success) {
-        const libraryData = response.data.library;
-
-        // Update the selected library with new words and pagination info
-        setSelectedLibrary(libraryData);
-
-        // Also update the library in the libraries array to keep counts in sync
-        setLibraries(prev => prev.map(lib =>
-          lib.id === libraryId
-            ? { ...lib, word_count: libraryData.word_count, learned_count: libraryData.learned_count, unlearned_count: libraryData.unlearned_count }
-            : lib
-        ));
-      } else {
-        throw new Error(response.error || 'Failed to load library words');
+      // If we have a selected library but no words loaded, load them
+      if (selectedLibrary && (!selectedLibrary.words || selectedLibrary.words.length === 0)) {
+        await loadLibraryWords(selectedLibrary.id, { per_page: 500 });
+      }
+      // If no library is selected but we have libraries, select and load the master library
+      else if (!selectedLibrary && libraries.length > 0) {
+        const masterLibrary = libraries.find(lib => lib.is_master);
+        if (masterLibrary) {
+          setSelectedLibrary(masterLibrary);
+          await loadLibraryWords(masterLibrary.id, { per_page: 500 });
+        }
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load library words';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to preload essential data:', error);
+      // Don't show error toast here as it might be called multiple times
     }
-  }, []); // Empty dependency array since this function doesn't depend on any props or state
+  };
 
   const addWord = async (wordData: {
     word: string;
     meaning: string;
     pronunciation?: string;
-    synonym?: string;
-    antonym?: string;
     example?: string;
     difficulty?: string;
   }): Promise<boolean> => {
@@ -233,10 +260,14 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({ children }) =>
     try {
       setIsLoading(true);
 
-      const response = await wordApi.addWord({
+      const requestData = {
         ...wordData,
         library_id: selectedLibrary.id,
-      });
+      };
+
+      console.log('Adding word with data:', requestData);
+
+      const response = await wordApi.addWord(requestData);
 
       if (response.success) {
         toast.success('Word added successfully');
@@ -249,6 +280,7 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({ children }) =>
         throw new Error(response.error || 'Failed to add word');
       }
     } catch (error) {
+      console.error('Add word error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to add word';
       toast.error(errorMessage);
       return false;
@@ -261,8 +293,6 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({ children }) =>
     word: string;
     meaning: string;
     pronunciation?: string;
-    synonym?: string;
-    antonym?: string;
     example?: string;
     difficulty?: string;
   }): Promise<boolean> => {
@@ -429,6 +459,7 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({ children }) =>
     deleteLibrary,
     selectLibrary,
     loadLibraryWords,
+    preloadEssentialData,
     addWord,
     updateWord,
     removeWord,

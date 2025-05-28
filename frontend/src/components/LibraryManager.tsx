@@ -49,12 +49,7 @@ const LibraryManager = () => {
   const [editLibraryForm, setEditLibraryForm] = useState({ name: '', description: '' });
   const [wordForm, setWordForm] = useState({
     word: '',
-    meaning: '',
-    pronunciation: '',
-    synonym: '',
-    antonym: '',
-    example: '',
-    difficulty: 'medium'
+    meaning: ''
   });
 
   // Use refs to store current values and avoid dependency issues
@@ -160,12 +155,7 @@ const LibraryManager = () => {
     if (success) {
       setWordForm({
         word: '',
-        meaning: '',
-        pronunciation: '',
-        synonym: '',
-        antonym: '',
-        example: '',
-        difficulty: 'medium'
+        meaning: ''
       });
       setShowAddWordDialog(false);
     }
@@ -208,12 +198,7 @@ const LibraryManager = () => {
         setWordToEdit(word);
         setWordForm({
           word: word.word,
-          meaning: word.meaning,
-          pronunciation: word.pronunciation || '',
-          synonym: word.synonym || '',
-          antonym: word.antonym || '',
-          example: word.example || '',
-          difficulty: word.difficulty
+          meaning: word.meaning
         });
         setShowEditWordDialog(true);
         break;
@@ -389,7 +374,7 @@ const LibraryManager = () => {
                       <DialogHeader>
                         <DialogTitle className="text-xl font-bold text-gray-900">Upload CSV File</DialogTitle>
                         <DialogDescription className="text-gray-600">
-                          Upload a CSV file with columns: word, meaning, pronunciation, synonym, antonym, example, difficulty
+                          Upload any CSV file with vocabulary words. Our system will automatically detect which columns contain words and meanings.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 mt-6">
@@ -435,65 +420,24 @@ const LibraryManager = () => {
                       </DialogHeader>
                       <div className="space-y-6 mt-6">
                         <div>
-                          <Label htmlFor="word" className="text-sm font-semibold text-gray-700">Word *</Label>
+                          <Label htmlFor="word" className="text-sm font-semibold text-gray-700">Word Name *</Label>
                           <Input
                             id="word"
                             value={wordForm.word}
                             onChange={(e) => setWordForm({ ...wordForm, word: e.target.value })}
-                            placeholder="Enter word"
+                            placeholder="Enter the word"
                             className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="meaning" className="text-sm font-semibold text-gray-700">Meaning *</Label>
+                          <Label htmlFor="meaning" className="text-sm font-semibold text-gray-700">Word Meaning *</Label>
                           <Textarea
                             id="meaning"
                             value={wordForm.meaning}
                             onChange={(e) => setWordForm({ ...wordForm, meaning: e.target.value })}
-                            placeholder="Enter meaning"
+                            placeholder="Enter the meaning or definition"
                             className="mt-2 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="pronunciation" className="text-sm font-semibold text-gray-700">Pronunciation</Label>
-                          <Input
-                            id="pronunciation"
-                            value={wordForm.pronunciation}
-                            onChange={(e) => setWordForm({ ...wordForm, pronunciation: e.target.value })}
-                            placeholder="e.g., /ˈwɜrd/"
-                            className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="synonym" className="text-sm font-semibold text-gray-700">Synonym</Label>
-                            <Input
-                              id="synonym"
-                              value={wordForm.synonym}
-                              onChange={(e) => setWordForm({ ...wordForm, synonym: e.target.value })}
-                              placeholder="Synonym"
-                              className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="antonym" className="text-sm font-semibold text-gray-700">Antonym</Label>
-                            <Input
-                              id="antonym"
-                              value={wordForm.antonym}
-                              onChange={(e) => setWordForm({ ...wordForm, antonym: e.target.value })}
-                              placeholder="Antonym"
-                              className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="example" className="text-sm font-semibold text-gray-700">Example</Label>
-                          <Textarea
-                            id="example"
-                            value={wordForm.example}
-                            onChange={(e) => setWordForm({ ...wordForm, example: e.target.value })}
-                            placeholder="Example sentence"
-                            className="mt-2 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
+                            rows={3}
                           />
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
@@ -528,7 +472,7 @@ const LibraryManager = () => {
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
                         type="text"
-                        placeholder="Search words, meanings, synonyms..."
+                        placeholder="Search words and meanings..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10 pr-10 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
@@ -894,65 +838,24 @@ const LibraryManager = () => {
             </DialogHeader>
             <div className="space-y-6 mt-6">
               <div>
-                <Label htmlFor="edit-word" className="text-sm font-semibold text-gray-700">Word *</Label>
+                <Label htmlFor="edit-word" className="text-sm font-semibold text-gray-700">Word Name *</Label>
                 <Input
                   id="edit-word"
                   value={wordForm.word}
                   onChange={(e) => setWordForm({ ...wordForm, word: e.target.value })}
-                  placeholder="Enter word"
+                  placeholder="Enter the word"
                   className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-meaning" className="text-sm font-semibold text-gray-700">Meaning *</Label>
+                <Label htmlFor="edit-meaning" className="text-sm font-semibold text-gray-700">Word Meaning *</Label>
                 <Textarea
                   id="edit-meaning"
                   value={wordForm.meaning}
                   onChange={(e) => setWordForm({ ...wordForm, meaning: e.target.value })}
-                  placeholder="Enter meaning"
+                  placeholder="Enter the meaning or definition"
                   className="mt-2 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-pronunciation" className="text-sm font-semibold text-gray-700">Pronunciation</Label>
-                <Input
-                  id="edit-pronunciation"
-                  value={wordForm.pronunciation}
-                  onChange={(e) => setWordForm({ ...wordForm, pronunciation: e.target.value })}
-                  placeholder="e.g., /ˈwɜrd/"
-                  className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-synonym" className="text-sm font-semibold text-gray-700">Synonym</Label>
-                  <Input
-                    id="edit-synonym"
-                    value={wordForm.synonym}
-                    onChange={(e) => setWordForm({ ...wordForm, synonym: e.target.value })}
-                    placeholder="Synonym"
-                    className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-antonym" className="text-sm font-semibold text-gray-700">Antonym</Label>
-                  <Input
-                    id="edit-antonym"
-                    value={wordForm.antonym}
-                    onChange={(e) => setWordForm({ ...wordForm, antonym: e.target.value })}
-                    placeholder="Antonym"
-                    className="mt-2 h-12 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="edit-example" className="text-sm font-semibold text-gray-700">Example</Label>
-                <Textarea
-                  id="edit-example"
-                  value={wordForm.example}
-                  onChange={(e) => setWordForm({ ...wordForm, example: e.target.value })}
-                  placeholder="Example sentence"
-                  className="mt-2 border-2 border-gray-200 focus:border-primary/50 rounded-xl"
+                  rows={3}
                 />
               </div>
               <div className="flex justify-end space-x-3 pt-4">
@@ -968,12 +871,7 @@ const LibraryManager = () => {
                         setWordToEdit(null);
                         setWordForm({
                           word: '',
-                          meaning: '',
-                          pronunciation: '',
-                          synonym: '',
-                          antonym: '',
-                          example: '',
-                          difficulty: 'medium'
+                          meaning: ''
                         });
                       }
                     }

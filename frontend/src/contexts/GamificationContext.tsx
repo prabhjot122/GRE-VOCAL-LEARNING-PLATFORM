@@ -27,10 +27,8 @@ export interface GamificationStats {
   totalWordsLearned: number;
   totalStudyTime: number; // in minutes
   storiesCreated: number;
-  quizzesTaken: number;
   currentStreak: number;
   longestStreak: number;
-  perfectQuizzes: number;
   vocabularyMastery: number; // percentage
 }
 
@@ -39,17 +37,17 @@ interface GamificationContextType {
   userLevel: UserLevel;
   achievements: Achievement[];
   stats: GamificationStats;
-  
+
   // Actions
   addXP: (amount: number, reason: string) => void;
   updateStats: (newStats: Partial<GamificationStats>) => void;
   checkAchievements: () => void;
-  
+
   // Getters
   getUnlockedAchievements: () => Achievement[];
   getLockedAchievements: () => Achievement[];
   getProgressPercentage: () => number;
-  
+
   // Loading state
   isLoading: boolean;
 }
@@ -81,10 +79,8 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
     totalWordsLearned: 0,
     totalStudyTime: 0,
     storiesCreated: 0,
-    quizzesTaken: 0,
     currentStreak: 0,
     longestStreak: 0,
-    perfectQuizzes: 0,
     vocabularyMastery: 0
   });
 
@@ -148,7 +144,7 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
         rarity: 'epic',
         xpReward: 500
       },
-      
+
       // Story achievements
       {
         id: 'storyteller',
@@ -174,7 +170,7 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
         rarity: 'rare',
         xpReward: 100
       },
-      
+
       // Consistency achievements
       {
         id: 'daily_learner',
@@ -212,44 +208,8 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
         rarity: 'legendary',
         xpReward: 1000
       },
-      
-      // Quiz achievements
-      {
-        id: 'quiz_taker',
-        title: 'Quiz Taker',
-        description: 'Complete your first quiz',
-        icon: '🧠',
-        category: 'vocabulary',
-        requirement: 1,
-        currentProgress: 0,
-        isUnlocked: false,
-        rarity: 'common',
-        xpReward: 15
-      },
-      {
-        id: 'perfect_score',
-        title: 'Perfect Score',
-        description: 'Get 100% on a quiz',
-        icon: '💯',
-        category: 'vocabulary',
-        requirement: 1,
-        currentProgress: 0,
-        isUnlocked: false,
-        rarity: 'rare',
-        xpReward: 75
-      },
-      {
-        id: 'quiz_master',
-        title: 'Quiz Master',
-        description: 'Complete 50 quizzes',
-        icon: '🏆',
-        category: 'vocabulary',
-        requirement: 50,
-        currentProgress: 0,
-        isUnlocked: false,
-        rarity: 'epic',
-        xpReward: 300
-      }
+
+
     ];
 
     setAchievements(defaultAchievements);
@@ -308,7 +268,7 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
     setUserLevel(prev => {
       const newTotalXP = prev.totalXP + amount;
       const newCurrentXP = prev.currentXP + amount;
-      
+
       let newLevel = prev.level;
       let remainingXP = newCurrentXP;
       let xpToNext = prev.xpToNextLevel;
@@ -318,7 +278,7 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
         remainingXP -= xpToNext;
         newLevel++;
         xpToNext = calculateXPForLevel(newLevel);
-        
+
         // Show level up notification
         toast.success(`🎉 Level Up! You are now level ${newLevel}!`, {
           duration: 5000,
@@ -351,7 +311,7 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
         if (achievement.isUnlocked) return achievement;
 
         let progress = 0;
-        
+
         switch (achievement.id) {
           case 'first_word':
           case 'word_collector_10':
@@ -368,13 +328,7 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
           case 'month_master':
             progress = stats.currentStreak;
             break;
-          case 'quiz_taker':
-          case 'quiz_master':
-            progress = stats.quizzesTaken;
-            break;
-          case 'perfect_score':
-            progress = stats.perfectQuizzes;
-            break;
+
           default:
             progress = achievement.currentProgress;
         }
@@ -388,10 +342,10 @@ export const GamificationProvider: React.FC<GamificationProviderProps> = ({ chil
         if (progress >= achievement.requirement && !achievement.isUnlocked) {
           updatedAchievement.isUnlocked = true;
           updatedAchievement.unlockedAt = new Date();
-          
+
           // Award XP
           addXP(achievement.xpReward, `Achievement: ${achievement.title}`);
-          
+
           // Show achievement notification
           toast.success(`🏆 Achievement Unlocked: ${achievement.title}!`, {
             description: achievement.description,

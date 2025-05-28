@@ -35,7 +35,6 @@ A comprehensive vocabulary learning application built with Flask backend and Rea
 - **CSV Import/Export**: Bulk import words from CSV files and export libraries
 - **Flashcard Learning**: Interactive flashcard system with 3D animations
 - **Story Builder**: AI-powered story creation using selected vocabulary words
-- **Quiz System**: Test your knowledge with various quiz formats
 - **Progress Tracking**: Monitor learning progress and statistics
 
 ### Advanced Features

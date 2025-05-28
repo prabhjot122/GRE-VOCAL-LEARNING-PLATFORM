@@ -16,7 +16,6 @@ const EnhancedFlashcardLearning = () => {
     currentSession,
     isSessionActive,
     startFlashcardSession,
-    startQuizSession,
     endSession,
     markWordKnown,
     markWordUnknown,
@@ -363,19 +362,35 @@ const EnhancedFlashcardLearning = () => {
                           <p className="text-lg text-gray-800">{currentCard.meaning}</p>
                         </div>
 
-                        {currentCard.synonym && (
-                          <div>
-                            <h3 className="font-semibold text-gray-700 mb-1">Synonyms:</h3>
-                            <p className="text-gray-700">{currentCard.synonym}</p>
-                          </div>
-                        )}
-
-                        {currentCard.antonym && (
-                          <div>
-                            <h3 className="font-semibold text-gray-700 mb-1">Antonyms:</h3>
-                            <p className="text-gray-700">{currentCard.antonym}</p>
-                          </div>
-                        )}
+                        {/* Synonyms and Antonyms Google Search Buttons */}
+                        <div className="flex space-x-3 justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`synonyms of ${currentCard.word}`)}`;
+                              window.open(searchUrl, '_blank');
+                            }}
+                            className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Synonyms
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`antonyms of ${currentCard.word}`)}`;
+                              window.open(searchUrl, '_blank');
+                            }}
+                            className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Antonyms
+                          </Button>
+                        </div>
 
                         {currentCard.example && (
                           <div>
