@@ -425,8 +425,15 @@ def get_random_words(current_user):
             query = query.filter(LibraryWord.is_learned == False)
         # 'all' doesn't add any filter
 
-        # Get random words
-        words_data = query.order_by(func.random()).limit(limit).all()
+        # Get random words using better randomization
+        # First get all matching words, then sample randomly in Python for better distribution
+        all_words_data = query.all()
+
+        if len(all_words_data) <= limit:
+            words_data = all_words_data
+        else:
+            import random
+            words_data = random.sample(all_words_data, limit)
 
         # Format response
         words = []
@@ -579,8 +586,14 @@ def get_random_unlearned_words(current_user):
             LibraryWord.is_learned == False
         )
 
-        # Get random unlearned words
-        words_data = query.order_by(func.random()).limit(count).all()
+        # Get random unlearned words using better randomization
+        all_words_data = query.all()
+
+        if len(all_words_data) <= count:
+            words_data = all_words_data
+        else:
+            import random
+            words_data = random.sample(all_words_data, count)
 
         # Format response
         words = []
@@ -628,8 +641,14 @@ def get_word_of_the_day(current_user):
             LibraryWord.is_learned == False
         )
 
-        # Get one random unlearned word
-        word_data = query.order_by(func.random()).first()
+        # Get one random unlearned word using better randomization
+        all_words_data = query.all()
+
+        if not all_words_data:
+            word_data = None
+        else:
+            import random
+            word_data = random.choice(all_words_data)
 
         if not word_data:
             return jsonify({
