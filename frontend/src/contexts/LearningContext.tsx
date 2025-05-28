@@ -18,10 +18,10 @@ export interface StudySession {
 
 export interface QuizQuestion {
   id: string;
-  type: 'multiple-choice' | 'fill-blank' | 'true-false' | 'matching';
+  type: 'multiple-choice';
   word: Word;
   question: string;
-  options?: string[];
+  options: string[];
   correctAnswer: string;
   userAnswer?: string;
   isCorrect?: boolean;
@@ -42,7 +42,7 @@ interface LearningContextType {
   isSessionActive: boolean;
 
   // Session management
-  startFlashcardSession: (libraryId: number, mode: 'revision' | 'new' | 'mixed', startWithWordId?: number) => Promise<boolean>;
+  startFlashcardSession: (libraryId: number, mode: 'revision' | 'new' | 'mixed') => Promise<boolean>;
   startQuizSession: (libraryId: number, questionCount: number) => Promise<boolean>;
   endSession: () => void;
 
@@ -122,7 +122,7 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
     setLearningStats(stats);
   };
 
-  const startFlashcardSession = async (libraryId: number, mode: 'revision' | 'new' | 'mixed'): Promise<boolean> => {
+  const startFlashcardSession = async (libraryId: number, mode: 'revision' | 'new' | 'mixed', startWithWordId?: number): Promise<boolean> => {
     try {
       // Import the API to fetch library words
       const { libraryApi } = await import('@/services/api');
@@ -154,15 +154,30 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
         return false;
       }
 
-      // Shuffle words for variety
-      wordsToStudy = wordsToStudy.sort(() => Math.random() - 0.5);
+      // Shuffle words for variety using Fisher-Yates algorithm
+      for (let i = wordsToStudy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [wordsToStudy[i], wordsToStudy[j]] = [wordsToStudy[j], wordsToStudy[i]];
+      }
+
+      // If a specific word is requested, move it to the front
+      let startIndex = 0;
+      if (startWithWordId) {
+        const wordIndex = wordsToStudy.findIndex(word => word.id === startWithWordId);
+        if (wordIndex > 0) {
+          // Move the word to the front
+          const targetWord = wordsToStudy[wordIndex];
+          wordsToStudy.splice(wordIndex, 1);
+          wordsToStudy.unshift(targetWord);
+        }
+      }
 
       const session: StudySession = {
         id: `session_${Date.now()}`,
         libraryId,
         mode: 'flashcards',
         words: wordsToStudy,
-        currentIndex: 0,
+        currentIndex: startIndex,
         correctAnswers: 0,
         totalAnswered: 0,
         startTime: new Date(),
@@ -191,7 +206,14 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
         return false;
       }
 
-      const availableWords = response.data.library.words.slice(0, questionCount);
+      // Use Fisher-Yates shuffle for better randomization before selecting words
+      const allWords = [...response.data.library.words];
+      for (let i = allWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allWords[i], allWords[j]] = [allWords[j], allWords[i]];
+      }
+
+      const availableWords = allWords.slice(0, questionCount);
       if (availableWords.length < questionCount) {
         toast.warning(`Only ${availableWords.length} words available for quiz`);
       }
@@ -223,31 +245,40 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
   };
 
   const generateQuizQuestions = (words: Word[]): QuizQuestion[] => {
-    return words.map((word, index) => {
-      const questionTypes: QuizQuestion['type'][] = ['multiple-choice', 'fill-blank', 'true-false'];
-      const randomType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
-
-      switch (randomType) {
-        case 'multiple-choice':
-          return generateMultipleChoiceQuestion(word, words);
-        case 'fill-blank':
-          return generateFillBlankQuestion(word);
-        case 'true-false':
-          return generateTrueFalseQuestion(word, words);
-        default:
-          return generateMultipleChoiceQuestion(word, words);
-      }
+    // Only generate multiple-choice questions
+    return words.map((word) => {
+      return generateMultipleChoiceQuestion(word, words);
     });
   };
 
   const generateMultipleChoiceQuestion = (word: Word, allWords: Word[]): QuizQuestion => {
     const otherWords = allWords.filter(w => w.id !== word.id);
-    const wrongOptions = otherWords
-      .sort(() => Math.random() - 0.5)
+
+    // Use Fisher-Yates shuffle for better randomization
+    const shuffledWords = [...otherWords];
+    for (let i = shuffledWords.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledWords[i], shuffledWords[j]] = [shuffledWords[j], shuffledWords[i]];
+    }
+
+    const wrongOptions = shuffledWords
       .slice(0, 3)
       .map(w => w.meaning);
 
-    const options = [word.meaning, ...wrongOptions].sort(() => Math.random() - 0.5);
+    // Ensure we have enough options
+    if (wrongOptions.length < 3) {
+      // If not enough words, create some generic wrong options
+      while (wrongOptions.length < 3) {
+        wrongOptions.push(`Option ${wrongOptions.length + 1}`);
+      }
+    }
+
+    // Shuffle the final options using Fisher-Yates
+    const options = [word.meaning, ...wrongOptions];
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
 
     return {
       id: `q_${word.id}_mc`,
@@ -259,39 +290,7 @@ export const LearningProvider: React.FC<LearningProviderProps> = ({ children }) 
     };
   };
 
-  const generateFillBlankQuestion = (word: Word): QuizQuestion => {
-    const example = word.example || `The word "${word.word}" means _____.`;
-    const question = example.replace(new RegExp(word.word, 'gi'), '_____');
 
-    return {
-      id: `q_${word.id}_fb`,
-      type: 'fill-blank',
-      word,
-      question,
-      correctAnswer: word.word
-    };
-  };
-
-  const generateTrueFalseQuestion = (word: Word, allWords: Word[]): QuizQuestion => {
-    const isTrue = Math.random() > 0.5;
-    let meaning = word.meaning;
-
-    if (!isTrue) {
-      const otherWords = allWords.filter(w => w.id !== word.id);
-      if (otherWords.length > 0) {
-        meaning = otherWords[Math.floor(Math.random() * otherWords.length)].meaning;
-      }
-    }
-
-    return {
-      id: `q_${word.id}_tf`,
-      type: 'true-false',
-      word,
-      question: `True or False: "${word.word}" means "${meaning}"`,
-      options: ['True', 'False'],
-      correctAnswer: isTrue ? 'True' : 'False'
-    };
-  };
 
   const markWordKnown = async (wordId: number): Promise<boolean> => {
     if (!currentSession) return false;
